@@ -17,7 +17,7 @@ def parse_args():
         migrate_csvs(args.csv)
     else:
         parser.print_help()
-        exit(1)
+        sys.exit(1)
 
 
 def date_to_informix(date_text):
@@ -76,7 +76,7 @@ def convert_csv(path):
     new_dir = dir_path + "/" + 'informix'
     if os.path.isfile(new_dir):
         print 'Error: Existence of an informix file'
-        exit(1)
+        sys.exit(1)
     if not os.path.exists(new_dir):
             os.makedirs(new_dir)
     new_file = new_dir + "/" + ntpath.basename(path)
