@@ -5,6 +5,7 @@ import ntpath
 import os
 import datetime
 import glob
+import sys
 
 
 def parse_args():
@@ -58,9 +59,9 @@ def get_informix_header(ps_header, file_name):
 def ps_to_mix_csv(src_path, dst_path):
     row_number = 0
     file_name = ntpath.basename(src_path)
-    with open(dst_path, "w") as write_file:
+    with open(dst_path, "wb") as write_file:
         writer = csv.writer(write_file, delimiter=';')
-        with open(src_path, "r") as read_file:
+        with open(src_path, "rb") as read_file:
             reader = csv.reader(read_file, delimiter=';')
             for row in reader:
                 if row_number == 0:
