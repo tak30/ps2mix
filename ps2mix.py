@@ -71,6 +71,7 @@ def get_informix_header(ps_header, file_name):
 def ps_to_mix_csv(src_path, dst_path, excluded_files):
     row_number = 0
     file_name = ntpath.basename(src_path)
+    print "Migrating file: " + file_name
     add_id = file_name not in excluded_files
     with open(dst_path, "wb") as write_file:
         writer = csv.writer(write_file, delimiter=';')
