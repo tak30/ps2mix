@@ -60,7 +60,7 @@ def get_informix_row(ps_row, row_number, add_id):
 def get_informix_header(ps_header, file_name):
     table_name, extension = os.path.splitext(file_name)
     column = table_name[4:] + "_id"
-    add_id = column not in unicode(ps_header)
+    add_id = column != unicode(ps_header)
     if add_id:
         new_row = [column] + ps_header
     else:
@@ -79,7 +79,7 @@ def ps_to_mix_csv(src_path, dst_path, excluded_files):
             reader = csv.reader(read_file, delimiter=';')
             for row in reader:
                 if row_number == 0:
-                    if (add_id):
+                    if add_id:
                         new_row, add_id = get_informix_header(row, file_name)
                     else:
                         new_row = row
