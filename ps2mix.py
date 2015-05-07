@@ -60,7 +60,7 @@ def get_informix_row(ps_row, row_number, add_id):
 def get_informix_header(ps_header, file_name):
     table_name, extension = os.path.splitext(file_name)
     column = table_name[4:] + "_id"
-    add_id = column != unicode(ps_header)
+    add_id = any(column in s for s in unicode(ps_header))
     if add_id:
         new_row = [column] + ps_header
     else:
