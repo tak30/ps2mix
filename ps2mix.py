@@ -12,13 +12,18 @@ def parse_args():
     parser = argparse.ArgumentParser(
         description='Migrate stuff from postgresql to informix')
     parser.add_argument("-c", "--csv", type=str,
-                        help='Usage: -c file|directory')
+                        help='Usage: -c (file|directory)')
+    parser.add_argument("-o", "--out", type=str,
+                        help='Usage: -o (directory)')
+    parser.add_argument("-ef", "--excluded", type=str,
+                        help='Usage: -e (comma separated excluded file)')
     args = parser.parse_args()
-    if args.csv is not None:
-        excluded_files_path = os.path.abspath('excluded_files.txt')
+    if args.csv is not None and args.excluded is not None and \
+            args.out is not None:
+        excluded_files_path = os.path.abspath(args.excluded)
         with open(excluded_files_path, 'rb') as file:
             excluded_files = file.read().splitlines()
-            migrate_csvs(args.csv, excluded_files)
+            migrate_csvs(args.csv, excluded_files, args.out)
     else:
         parser.print_help()
         sys.exit(1)
@@ -89,25 +94,23 @@ def ps_to_mix_csv(src_path, dst_path, excluded_files):
                 row_number += 1
 
 
-def convert_csv(path, excluded_files):
-    dir_path = os.path.dirname(path)
-    new_dir = dir_path + "/" + 'informix'
-    if os.path.isfile(new_dir):
-        print 'Error: Existence of a file named informix'
+def convert_csv(path, excluded_files, out_dir):
+    if os.path.isfile(out_dir):
+        print 'Error: Existence of a file named ' + os.path.basename(out_dir)
         sys.exit(1)
-    if not os.path.exists(new_dir):
-            os.makedirs(new_dir)
-    new_file = new_dir + "/" + ntpath.basename(path)
+    if not os.path.exists(out_dir):
+            os.makedirs(out_dir)
+    new_file = out_dir + "/" + ntpath.basename(path)
     ps_to_mix_csv(path, new_file, excluded_files)
 
 
-def migrate_csvs(path, excluded_files):
+def migrate_csvs(path, excluded_files, out_dir):
     abs_path = os.path.abspath(path)
     if os.path.isfile(abs_path):
-        convert_csv(abs_path, excluded_files)
+        convert_csv(abs_path, excluded_files, out_dir)
     elif os.path.isdir(abs_path):
         for each_file in glob.glob(abs_path + "/*.csv"):
-            convert_csv(each_file, excluded_files)
+            convert_csv(each_file, excluded_files, out_dir)
 
 
 if __name__ == '__main__':
