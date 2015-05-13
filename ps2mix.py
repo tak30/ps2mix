@@ -65,7 +65,7 @@ def get_informix_row(ps_row, row_number, add_id):
 def get_informix_header(ps_header, file_name):
     table_name, extension = os.path.splitext(file_name)
     column = table_name[4:] + "_id"
-    add_id = any(column in s for s in unicode(ps_header))
+    add_id = all(column != s for s in ps_header)
     if add_id:
         new_row = [column] + ps_header
     else:
@@ -77,7 +77,7 @@ def ps_to_mix_csv(src_path, dst_path, excluded_files):
     row_number = 0
     file_name = ntpath.basename(src_path)
     print "Migrating file: " + file_name
-    add_id = file_name not in excluded_files
+    add_id = all(file_name != s for s in excluded_files)
     with open(dst_path, "wb") as write_file:
         writer = csv.writer(write_file, delimiter=';')
         with open(src_path, "rb") as read_file:
