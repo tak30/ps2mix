@@ -35,8 +35,8 @@ def date_to_informix(date_text):
         return ps_date.strftime('%Y-%m-%d 00:00:00')
     except ValueError:
         try:
-            ps_date = datetime.datetime.strptime(date_text, '%d/%m/%Y %I:%M')
-            return ps_date.strftime('%Y-%m-%d %I:%M:%S')
+            ps_date = datetime.datetime.strptime(date_text, '%d/%m/%Y %H:%M')
+            return ps_date.strftime('%Y-%m-%d %H:%M:%S')
         except ValueError:
             return None
 
