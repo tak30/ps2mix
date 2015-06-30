@@ -32,13 +32,17 @@ def parse_args():
 def date_to_informix(date_text):
     try:
         ps_date = datetime.datetime.strptime(date_text, '%d/%m/%Y')
-        return ps_date.strftime('%Y-%m-%d 00:00:00')
+        return ps_date.strftime('%Y-%m-%d')
     except ValueError:
         try:
             ps_date = datetime.datetime.strptime(date_text, '%d/%m/%Y %H:%M')
             return ps_date.strftime('%Y-%m-%d %H:%M:%S')
         except ValueError:
-            return None
+            try:
+                ps_date = datetime.datetime.strptime(date_text, '%d/%m/%Y %H:%M:%S')
+                return ps_date.strftime('%Y-%m-%d %H:%M:%S')
+            except ValueError:
+                return None
 
 
 def get_informix_row(ps_row, row_number, add_id):
@@ -83,6 +87,8 @@ def ps_to_mix_csv(src_path, dst_path, excluded_files):
         with open(src_path, "rb") as read_file:
             reader = csv.reader(read_file, delimiter=';')
             for row in reader:
+                if not row: #If empty row, dont write it
+                    continue
                 if row_number == 0:
                     if add_id:
                         new_row, add_id = get_informix_header(row, file_name)
