@@ -54,3 +54,9 @@ docs/_build/
 
 # CSV's
 csv/
+
+# VIM STUFF
+*.swp
+
+# Test folder
+tests/

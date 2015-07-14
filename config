@@ -1,0 +1,4 @@
+[scripts]
+
+input_directory = input_prueba
+output_directory = output_prueba

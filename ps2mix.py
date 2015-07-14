@@ -1,4 +1,6 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
 import argparse
 import csv
 import ntpath
@@ -6,6 +8,7 @@ import os
 import datetime
 import glob
 import sys
+from ps2mix_scripts import migrate_scripts
 
 
 def parse_args():
@@ -17,6 +20,7 @@ def parse_args():
                         help='Usage: -o (directory)')
     parser.add_argument("-ef", "--excluded", type=str,
                         help='Usage: -e (comma separated excluded file)')
+    parser.add_argument("-s", "--scripts", action='store_true')
     args = parser.parse_args()
     if args.csv is not None and args.excluded is not None and \
             args.out is not None:
@@ -24,6 +28,8 @@ def parse_args():
         with open(excluded_files_path, 'rb') as file:
             excluded_files = file.read().splitlines()
             migrate_csvs(args.csv, excluded_files, args.out)
+    elif args.scripts is True:
+        migrate_scripts()
     else:
         parser.print_help()
         sys.exit(1)
