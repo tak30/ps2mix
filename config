@@ -1,4 +1,10 @@
 [scripts]
 
-input_directory = input_prueba
-output_directory = output_prueba
+dir_in = tests/in
+dir_out = tests/out
+in_script_create_table_name = create_table_lite.sql
+in_script_create_sequence_name = create_sequence.sql
+in_script_alter_sequence_name = alter_sequence.sql
+out_liquibase_master_xml_name = db-changelog-master
+out_liquibase_alter_table_xml_name = db-changelog-alter-table-insis
+common_config_file_path = tests/common-config
