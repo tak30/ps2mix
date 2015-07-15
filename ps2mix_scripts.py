@@ -125,13 +125,13 @@ def write_create_statement(statement, create_file):
     statement_unicode = unicode(statement)
     statement_unicode = re.sub("timestamp(?i)", "DATETIME YEAR TO SECOND",
                                statement_unicode)
-    statement_unicode = re.sub("date(?i)", "DATETIME YEAR TO DAY",
+    statement_unicode = re.sub("\sdate\s(?i)", "DATETIME YEAR TO DAY",
                                statement_unicode)
     statement_unicode = convert_varchars(statement_unicode)
     statement_unicode = re.sub("constraint(?i).*primary key(?i)", "PRIMARY KEY",
                                statement_unicode)
     statement_unicode = re.sub("default nextval\(.*\:\:regclass\)(?i)",
-                               "DATETIME YEAR TO DAY", statement_unicode)
+                               "", statement_unicode)
     create_file.write(statement_unicode)
 
 
