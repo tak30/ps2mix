@@ -112,24 +112,55 @@ def migrate_alter_sequence():
                  '\n')
 
 
+def convert_varchars(statement):
+    for match in re.findall("varchar\([0-9]*(?i)", statement):
+        num = match[8:]
+        if int(num) > 256:
+            statement = re.sub("varchar\(" + num + "(?i)",
+                               "LVARCHAR(" + num, statement)
+    return statement
+
+
+def write_create_statement(statement, create_file):
+    statement_unicode = unicode(statement)
+    statement_unicode = re.sub("timestamp(?i)", "DATETIME YEAR TO SECOND",
+                               statement_unicode)
+    statement_unicode = re.sub("date(?i)", "DATETIME YEAR TO DAY",
+                               statement_unicode)
+    statement_unicode = convert_varchars(statement_unicode)
+    statement_unicode = re.sub("constraint(?i).*primary key(?i)", "PRIMARY KEY",
+                               statement_unicode)
+    statement_unicode = re.sub("default nextval\(.*\:\:regclass\)(?i)",
+                               "DATETIME YEAR TO DAY", statement_unicode)
+    create_file.write(statement_unicode)
+
+
+def parse_create_statement(statement, create_file, alter_file):
+    if re.match("[\r\n?|\n]*\s*[set]+", unicode(statement).lower())  \
+            is not None:
+        return
+    if re.search("create\s*table", unicode(statement).lower()) is not None:
+        write_create_statement(statement, create_file)
+
+
 def migrate_create_table():
     logger.debug('-*' * 10 + 'BEGIN: migrate create table' + '-*' * 10 +
                  '\n')
     out_dir_path = os.path.abspath(settings['out_dir'])
     in_file_path = os.path.abspath(settings['in_dir'] + '/' +
                                    settings['create_table_file_name'])
-    file_name = os.path.basename(in_file_path)
-    out_file_path = out_dir_path + '/' + file_name
+    create_file_name = os.path.basename(in_file_path)
+    alter_file_name = settings['liquibase_alter_table_xml_name']
+    out_create_file_path = out_dir_path + '/' + create_file_name
+    out_alter_file_path = out_dir_path + '/' + alter_file_name
     with open(in_file_path, 'r') as in_file:
         raw_data = in_file.read()
         parsed = sqlparse.parse(raw_data)
-        with open(out_file_path, 'a') as out_file:
-            for item in parsed:
-                if re.match("[\r\n?|\n]*\s*[set]+", unicode(item).lower())  \
-                        is not None:
-                    continue
-                out_file.write(unicode(item))
-
+        with open(out_alter_file_path, 'a') as out_alter_file:
+            with open(out_create_file_path, 'a') as out_create_file:
+                for item in parsed:
+                    parse_create_statement(item, out_create_file,
+                                           out_alter_file)
     logger.debug('-*' * 10 + 'END: migrate create table' + '-*' * 10 +
                  '\n')
 
