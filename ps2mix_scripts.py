@@ -138,22 +138,31 @@ def convert_varchars(statement):
     for match in re.findall("varchar\([0-9]*(?i)", statement):
         num = match[8:]
         if int(num) > 256:
-            statement = re.sub("varchar\(" + num + "(?i)",
-                               "LVARCHAR(" + num, statement)
+            statement = re.sub("\svarchar\(" + num + "(?i)",
+                               " LVARCHAR(" + num, statement)
+    statement = re.sub("varchar\(256(?i)", "VARCHAR(255", statement)
     return statement
 
 
 def write_create_table_statement(statement, create_file):
     statement_unicode = unicode(statement)
-    statement_unicode = re.sub("timestamp(?i)", "DATETIME YEAR TO SECOND",
+    statement_unicode = re.sub("\stimestamp(?i)", " DATETIME YEAR TO SECOND",
                                statement_unicode)
-    statement_unicode = re.sub("\sdate\s(?i)", "DATETIME YEAR TO DAY",
+    statement_unicode = re.sub("\sdate(?!time )(?i)", " DATETIME YEAR TO DAY",
                                statement_unicode)
+    statement_unicode = re.sub("\stime(?!stamp )(?i)",
+                               " DATETIME HOUR TO MINUTE", statement_unicode)
     statement_unicode = convert_varchars(statement_unicode)
     statement_unicode = re.sub("constraint(?i).*primary key(?i)", "PRIMARY KEY",
                                statement_unicode)
-    statement_unicode = re.sub("default nextval\(.*\:\:regclass\)(?i)",
+    statement_unicode = re.sub("default nextval\(.*(\:\:regclass)?\)(?i)",
                                "", statement_unicode)
+    statement_unicode = re.sub("\sfalse(?i)",
+                               " 'f'", statement_unicode)
+    statement_unicode = re.sub("\strue(?i)",
+                               " 't'", statement_unicode)
+    statement_unicode = re.sub("\sbytea(?i)",
+                               " BYTE", statement_unicode)
     create_file.write(statement_unicode)
 
 
