@@ -151,7 +151,7 @@ def write_create_table_statement(statement, create_file):
     statement_unicode = re.sub("\sdate(?!time )(?i)", " DATETIME YEAR TO DAY",
                                statement_unicode)
     statement_unicode = re.sub("\stime(?!stamp )(?i)",
-                               " DATETIME HOUR TO MINUTE", statement_unicode)
+                               " DATETIME HOUR TO SECOND", statement_unicode)
     statement_unicode = convert_varchars(statement_unicode)
     statement_unicode = re.sub("constraint(?i).*primary key(?i)", "PRIMARY KEY",
                                statement_unicode)
