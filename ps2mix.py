@@ -19,8 +19,9 @@ def parse_args():
     parser.add_argument("-o", "--out", type=str,
                         help='Usage: -o (directory)')
     parser.add_argument("-ef", "--excluded", type=str,
-                        help='Usage: -e (comma separated excluded file)')
-    parser.add_argument("-s", "--scripts", action='store_true')
+                        help='Usage: -e (line separated excluded file)')
+    parser.add_argument("-s", "--scripts", type=str,
+                        help="Usage: -s (path to config file)")
     args = parser.parse_args()
     if args.csv is not None and args.excluded is not None and \
             args.out is not None:
@@ -28,8 +29,8 @@ def parse_args():
         with open(excluded_files_path, 'rb') as file:
             excluded_files = file.read().splitlines()
             migrate_csvs(args.csv, excluded_files, args.out)
-    elif args.scripts is True:
-        migrate_scripts()
+    elif args.scripts is not None:
+        migrate_scripts(args.scripts)
     else:
         parser.print_help()
         sys.exit(1)

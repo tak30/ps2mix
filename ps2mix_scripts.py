@@ -44,10 +44,12 @@ def validate_parameters():
     # TODO: Validation
 
 
-def parse_config_file():
+def parse_config_file(config_file_path):
     logger.debug('-*' * 10 + 'BEGIN: parse conf' + '-*' * 10 + '\n')
     specific_settings = ConfigParser.ConfigParser()
-    specific_settings.read(['config'])
+    config_files_path = os.path.abspath(config_file_path)
+    with open(config_file_path, 'rb') as config_file:
+        specific_settings.readfp(config_file)
 
     common_settings = ConfigParser.ConfigParser()
 
@@ -305,11 +307,11 @@ def prepare_output_dir():
     os.makedirs(out_dir_path)
 
 
-def migrate_scripts():
+def migrate_scripts(config_file_path):
     global logger
     logging.basicConfig()
     logger.setLevel(logging.DEBUG)
-    parse_config_file()
+    parse_config_file(config_file_path)
     validate_parameters()
     prepare_output_dir()
     migrate_create_sequence()
