@@ -6,11 +6,13 @@ import logging
 import os
 import sys
 import shutil
+import math
 import sqlparse
 import re
-
+import csv
 
 settings = {}
+customizations = {}
 logger = logging.getLogger(__name__)
 
 
@@ -29,6 +31,8 @@ def validate_parameters():
                  settings['liquibase_master_xml_name'])
     logger.debug('out_liquibase_alter_table_xml_name: ' +
                  settings['liquibase_alter_table_xml_name'])
+    logger.debug('out_alter_table_sql_name: ' +
+                 settings['alter_table_sql_name'])
     logger.debug('common_config_file_path: ' +
                  settings['common_config_file_path'])
     logger.debug('alter_sequence_tail: ' + settings['alter_sequence_tail'])
@@ -36,10 +40,11 @@ def validate_parameters():
     logger.debug('alter_table_tail: ' + settings['alter_table_tail'])
     logger.debug('alter_table_template: ' + settings['alter_table_template'])
     logger.debug('liquibase_master_header: ' +
-        settings['liquibase_master_header'])
+                 settings['liquibase_master_header'])
     logger.debug('liquibase_master_tail: ' + settings['liquibase_master_tail'])
     logger.debug('liquibase_master_template: ' + settings['liquibase_master_template'])
     logger.debug('liquibase_master_insert_file: ' + settings['liquibase_master_insert_file'])
+    logger.debug('customizations_file: ' + settings['customizations_file'])
     logger.debug('-*' * 10 + 'END: validating parameters' + '-*' * 10 + '\n')
     # TODO: Validation
 
@@ -47,7 +52,6 @@ def validate_parameters():
 def parse_config_file(config_file_path):
     logger.debug('-*' * 10 + 'BEGIN: parse conf' + '-*' * 10 + '\n')
     specific_settings = ConfigParser.ConfigParser()
-    config_files_path = os.path.abspath(config_file_path)
     with open(config_file_path, 'rb') as config_file:
         specific_settings.readfp(config_file)
 
@@ -68,6 +72,8 @@ def parse_config_file(config_file_path):
         'scripts', 'out_liquibase_alter_table_xml_name')
     settings['common_config_file_path'] = specific_settings.get(
         'scripts', 'common_config_file_path')
+    settings['customizations_file'] = specific_settings.get(
+        'scripts', 'customizations_file')
 
     # Common parameters
     common_settings.read([settings['common_config_file_path']])
@@ -87,6 +93,8 @@ def parse_config_file(config_file_path):
         'scripts', 'liquibase_master_template')
     settings['liquibase_master_insert_file'] = common_settings.get(
         'scripts', 'liquibase_master_insert_file')
+    settings['alter_table_sql_name'] = common_settings.get(
+        'scripts', 'out_alter_table_sql_name')
     logger.debug('-*' * 10 + 'END: parse conf' + '-*' * 10 + '\n')
 
 
@@ -103,7 +111,7 @@ def migrate_create_sequence():
         parsed = sqlparse.parse(raw_data)
         with open(out_file_path, 'a') as out_file:
             for item in parsed:
-                if re.match("[\r\n?|\n]*\s*[set]+", unicode(item).lower())  \
+                if re.match("[\r\n?|\n]*\s*[set]+", unicode(item).lower()) \
                         is not None:
                     continue
                 out_file.write(unicode(item))
@@ -125,7 +133,7 @@ def migrate_alter_sequence():
         parsed = sqlparse.parse(raw_data)
         with open(out_file_path, 'a') as out_file:
             for item in parsed:
-                if re.match("[\r\n?|\n]*\s*[set]+", unicode(item).lower())  \
+                if re.match("[\r\n?|\n]*\s*[set]+", unicode(item).lower()) \
                         is not None:
                     continue
                 item = re.sub("owned(?i).*$", settings['alter_sequence_tail'],
@@ -144,6 +152,22 @@ def convert_varchars(statement):
                                " LVARCHAR(" + num, statement)
     statement = re.sub("varchar\(256(?i)", "VARCHAR(255", statement)
     return statement
+
+
+def add_customizations(statement_u):
+    table_name = re.search("TABLE(?i)\s*[^\s]*", statement_u)
+    if table_name is None:
+        return statement_u
+    table_name = table_name.group()
+    table_name = re.sub("TABLE(?i)\s*", "", table_name)
+    if table_name in customizations:
+        if 'extent_size' in customizations[table_name] and \
+                        'next_size' in customizations[table_name]:
+            next_size = customizations[table_name]['next_size']
+            extent_size = customizations[table_name]['extent_size']
+            statement_u = re.sub(";", "EXTENT SIZE " + str(extent_size) + " NEXT SIZE " + str(next_size) + ";",
+                                 statement_u)
+    return statement_u
 
 
 def write_create_table_statement(statement, create_file):
@@ -165,6 +189,7 @@ def write_create_table_statement(statement, create_file):
                                " 't'", statement_unicode)
     statement_unicode = re.sub("\sbytea(?i)",
                                " BYTE", statement_unicode)
+    statement_unicode = add_customizations(statement_unicode)
     create_file.write(statement_unicode)
 
 
@@ -212,19 +237,20 @@ def file_lines_close_to_limit(file_path):
     count = 0
     if not os.path.exists(file_path):
         return count
-    for line in open(file_path, 'r').xreadlines():
+    for _ in open(file_path, 'r').xreadlines():
         count += 1
     return count > 800
 
 
-def parse_create_statement(statement, create_file, alter_file):
-    if re.match("[\r\n?|\n]*\s*[set]+", unicode(statement).lower())  \
+def parse_create_statement(statement, create_file, alter_file, alter_sql_file):
+    if re.match("[\r\n?|\n]*\s*[set]+", unicode(statement).lower()) \
             is not None:
         return
     if re.search("create\s*table", unicode(statement).lower()) is not None:
         write_create_table_statement(statement, create_file)
     elif re.search("alter\s*table", unicode(statement).lower()) is not None:
         write_alter_table_statement(statement, alter_file)
+        alter_sql_file.write("\n" + unicode(statement) + "\n")
 
 
 def write_alter_table_header(alter_file):
@@ -246,22 +272,26 @@ def migrate_create_table():
                                    settings['create_table_file_name'])
     create_file_name = os.path.basename(in_file_path)
     alter_file_name = settings['liquibase_alter_table_xml_name']
+    alter_sql_file_name = settings['alter_table_sql_name']
     create_file_name = re.sub(".sql", "", create_file_name)
     out_create_file_path = out_dir_path + '/' + create_file_name + '_' + str(create_files_number) + '.sql'
     out_alter_file_path = out_dir_path + '/' + alter_file_name
+    out_alter_sql_file_path = out_dir_path + '/' + alter_sql_file_name
     with open(in_file_path, 'r') as in_file:
         raw_data = in_file.read()
         parsed = sqlparse.parse(raw_data)
         with open(out_alter_file_path, 'a') as out_alter_file:
-            write_alter_table_header(out_alter_file)
-            for item in parsed:
-                if file_lines_close_to_limit(out_create_file_path):
-                    create_files_number += 1
-                    out_create_file_path = out_dir_path + '/' + create_file_name + '_' + str(create_files_number) + '.sql'
-                with open(out_create_file_path, 'a') as out_create_file:
-                    parse_create_statement(item, out_create_file,
-                                               out_alter_file)
-            write_alter_table_tail(out_alter_file)
+            with open(out_alter_sql_file_path, 'a') as out_alter_sql_file:
+                write_alter_table_header(out_alter_file)
+                for item in parsed:
+                    if file_lines_close_to_limit(out_create_file_path):
+                        create_files_number += 1
+                        out_create_file_path = out_dir_path + '/' + create_file_name + '_' + str(
+                            create_files_number) + '.sql'
+                    with open(out_create_file_path, 'a') as out_create_file:
+                        parse_create_statement(item, out_create_file,
+                                               out_alter_file, out_alter_sql_file)
+                write_alter_table_tail(out_alter_file)
     logger.debug('-*' * 10 + 'END: migrate create table' + '-*' * 10 +
                  '\n')
 
@@ -282,6 +312,8 @@ def create_changelog_master():
             if re.search(settings['liquibase_alter_table_xml_name'], f):
                 continue
             if re.search(settings['alter_sequence_file_name'], f):
+                continue
+            if re.search(settings['alter_table_sql_name'], f):
                 continue
             include = re.sub("token_file_name", f, template)
             out_file.write(include + '\n')
@@ -307,12 +339,39 @@ def prepare_output_dir():
     os.makedirs(out_dir_path)
 
 
-def migrate_scripts(config_file_path):
+def normalize_size(old_size):
+    min_size = 8
+    old_size = int(old_size)
+    if old_size < min_size:
+        return str(min_size)
+    y = math.log(old_size, 2)
+    if y.is_integer():
+        return str(int(math.pow(2, y)))
+    y = math.floor(y)
+    return str(int(math.pow(2, y + 1)))
+
+
+def parse_customizations():
+    if not os.path.isfile(settings['customizations_file']):
+        return
+    global customizations
+    with open(settings['customizations_file'], 'rb') as customizations_file:
+        customizations_dict_file = csv.DictReader(customizations_file, delimiter=';')
+        for row in customizations_dict_file:
+            new_row = {}
+            new_row['extent_size'] = normalize_size(row['initial_size'])
+            new_row['next_size'] = normalize_size(row['increment_size'])
+            customizations[row['table_name']] = new_row
+
+
+def migrate_scripts(config_file_path, debug):
     global logger
     logging.basicConfig()
-    logger.setLevel(logging.DEBUG)
+    if debug:
+        logger.setLevel(logging.DEBUG)
     parse_config_file(config_file_path)
     validate_parameters()
+    parse_customizations()
     prepare_output_dir()
     migrate_create_sequence()
     migrate_alter_sequence()
