@@ -242,6 +242,26 @@ def file_lines_close_to_limit(file_path):
     return count > 800
 
 
+def toCamelCase(mathobj):
+    return mathobj.group(0)[1:].upper()
+
+
+def normalize_constraint_name(matchobj):
+    return re.sub("_([^\s])", toCamelCase, matchobj.group(0))
+
+
+def write_alter_table_in_sql_file(statement, alter_sql_file):
+    statement_u = unicode(statement)
+    # statement_u = re.sub("ADD\s*CONSTRAINT(?i)\s*([^\s])*", normalize_constraint_name,
+    #                           statement_u)
+    statement_u = re.sub("ADD\s*CONSTRAINT(?i)\s*([^\s])*", "ADD CONSTRAINT ",
+                               statement_u)
+    statement_u = re.sub("ON\s*DELETE(?i).*\s", "", statement_u)
+    statement_u = re.sub("ON\s*UPDATE(?i).*\s", "", statement_u)
+    statement_u = re.sub("NOT\s*DEFERRABLE(?i).*", ";", statement_u)
+    alter_sql_file.write("\n" + statement_u + "\n")
+
+
 def parse_create_statement(statement, create_file, alter_file, alter_sql_file):
     if re.match("[\r\n?|\n]*\s*[set]+", unicode(statement).lower()) \
             is not None:
@@ -250,7 +270,7 @@ def parse_create_statement(statement, create_file, alter_file, alter_sql_file):
         write_create_table_statement(statement, create_file)
     elif re.search("alter\s*table", unicode(statement).lower()) is not None:
         write_alter_table_statement(statement, alter_file)
-        alter_sql_file.write("\n" + unicode(statement) + "\n")
+        write_alter_table_in_sql_file(statement, alter_sql_file)
 
 
 def write_alter_table_header(alter_file):
