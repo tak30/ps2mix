@@ -4,6 +4,7 @@
 import ConfigParser
 import logging
 import os
+import re
 
 
 settings = {}
@@ -46,10 +47,8 @@ def prepare_output_file():
 
 def append_sql_file(sql_file_path, out_file):
     with open(sql_file_path, 'rb') as sql_file:
-        out_file.write("\n\n--" + "==" * 10)
-        out_file.write("--" + "Source file name: " +
-                       os.path.basename(sql_file_path) + "==" * 10)
-        out_file.write(sql_file.read())
+        sql_file_data = sql_file.read()
+        out_file.write(sql_file_data)
 
 
 def append_module(module, out_file):
@@ -64,7 +63,8 @@ def append_module(module, out_file):
         append_sql_file(sql_file_abs_path, out_file)
     sql_file_abs_path = os.path.join(module, settings['alter_table_sql_name'])
     if os.path.isfile(sql_file_abs_path):
-        append_sql_file(sql_file_abs_path, out_file)
+        if not re.search("alterarSecuencias.sql", sql_file_abs_path):
+            append_sql_file(sql_file_abs_path, out_file)
     logger.debug('-*' * 10 + 'END: append module' + '-*' * 10 + '\n')
 
 
